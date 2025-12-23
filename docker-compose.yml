@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  happy-server:
+    build: .
+    container_name: happy-server
+    restart: unless-stopped
+    ports:
+      - "3005:3005"
+    environment:
+      - NODE_ENV=production
+      - PORT=3005
+      - DATABASE_URL=postgresql://happy:happypass@postgres:5432/happy
+      - REDIS_URL=redis://redis:6379
+      - HANDY_MASTER_SECRET=${HANDY_MASTER_SECRET}
+      - S3_HOST=minio
+      - S3_PORT=9000
+      - S3_USE_SSL=false
+      - S3_ACCESS_KEY=minioadmin
+      - S3_SECRET_KEY=minioadmin
+      - S3_BUCKET=happy
+      - S3_PUBLIC_URL=https://happy-files.helsdingen.com
+    depends_on:
+      - postgres
+      - redis
+      - minio
+    networks:
+      - happy-network
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: happy-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=happy
+      - POSTGRES_PASSWORD=happypass
+      - POSTGRES_DB=happy
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - happy-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: happy-redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    networks:
+      - happy-network
+
+  minio:
+    image: minio/minio
+    container_name: happy-minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    volumes:
+      - minio_data:/data
+    networks:
+      - happy-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+
+networks:
+  happy-network:
+    driver: bridge
